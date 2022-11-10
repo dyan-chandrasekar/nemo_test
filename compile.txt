@@ -1,0 +1,12 @@
+pyuic5 -x gui.ui -o guiDesign.py
+
+  
+
+798 438
+
+
+f = open(cpth, "rb")
+unpacker = mp.Unpacker(f, object_hook=mpn.decode)
+img = []
+for unpacked in unpacker:
+    img.append(unpacked)
