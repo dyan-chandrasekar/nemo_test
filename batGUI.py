@@ -13,19 +13,15 @@ import msgpack_numpy as mpn
 from PyQt5.QtWidgets import *
 from pyqtgraph import *
 from guiDesign import Ui_MainWindow
-from typing import Counter
 from sys import stdout
 from datetime import datetime
 
-from PyQt5 import QtWidgets, QtCore 
+from PyQt5 import QtWidgets 
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
-from PyQt5.QtMultimedia import QMediaContent, QMediaPlayer
 from PyQt5.QtWidgets import *
 
 import serial.tools.list_ports
-
-
 
 class WorkerSignals(QObject):
     finished = pyqtSignal()
@@ -89,6 +85,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             print("{}: {} [{}]".format(port, desc, hwid))
         inx = hardware_list.index('USB VID:PID=16C0:0483 SER=10597030 LOCATION=1-1')
         serialport = serial_ports[inx]
+        
 
 
         self.serialport = serialport
@@ -103,6 +100,10 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         super(MainWindow, self).__init__(*args, **kwargs)
         self.setupUi(self)
         self.pushButton.clicked.connect(self.pressEnter)
+
+
+        self.closeButton.clicked.connect(self.close_app)
+        self.closeButton.setStyleSheet("background-color : red")
 
 
 
@@ -132,7 +133,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.Dte_2.hide()
         self.tme_2.hide()
         self.Tme_2.hide()
-        self.label_4.hide()
+        # self.label_4.hide()
 
     
         #DATE and TIME
@@ -142,6 +143,10 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         timer.start(1000)
 
         self.click_counter = 0
+
+    def close_app(self, serialport ,serialrate = 115200):
+        sys.exit(app.exec_())
+        self.ser_port = serial.Serial(serialport, serialrate).close()
     
     #read serial port
 
@@ -261,17 +266,26 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         # self.line_5.hide()
 
         self.dte_2.show()
+        self.dte_2.setStyleSheet("background-color : white")
         self.Dte_2.show()
+        self.Dte_2.setStyleSheet("background-color : white")
         self.tme_2.show()
+        self.tme_2.setStyleSheet("background-color : white")
         self.Tme_2.show()
+        self.Tme_2.setStyleSheet("background-color : white")
 
         self.pulAmpli.show()
+        self.pulAmpli.setStyleSheet("background-color : white")
         self.pulWid.show()
+        self.pulWid.setStyleSheet("background-color : white")
         self.pulAmp.show()
+        self.pulAmp.setStyleSheet("background-color : white")
         self.pulWidth.show()
-        self.label_4.show()
-        self.label_4.setStyleSheet("color : black")
-        self.label_4.setStyleSheet("background-color : white")
+        self.pulWidth.setStyleSheet("background-color : white")
+        # self.label_4.show()
+        # self.label_4.setStyleSheet("color : black")
+        # self.label_4.setStyleSheet("background-color : white")
+        self.batt_perc.setStyleSheet("background-color : white")
         self.doneSig.show()
         self.myplot.show()
         
@@ -329,6 +343,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.ampbtn=[]
         self.stimbtn=[]
         self.CMAP=[]
+        self.batVolt=[]
         _tempvar = 0
         counter = 0
         
@@ -336,14 +351,26 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         
         while True:
             if self.serial_read():
-                emgval = struct.unpack("f", self.payload[2:])    # EMG values
-                self.emg.append(emgval[0])
                 ampbtn = self.payload[0:1]
                 self.ampbtn.append(ampbtn)
                 stimbtn = self.payload[1:2]
                 self.stimbtn.append(stimbtn)
+                emgval = struct.unpack("f", self.payload[2:6])    # EMG values
+                self.emg.append(emgval[0])
+                print(self.emg)
+                batval = list(struct.unpack("f", self.payload[6:]))  
+                bat_perc = (batval[0] / 2.6) * 100
+                self.batVolt = round(bat_perc)
+                print(self.batVolt)
+                self.batt_perc.setText("BATTERY :" + " " + str(self.batVolt) + "%")
+
+              
                 counter +=1
-            
+
+                # if bat_perc <= 20:
+                    # self.batt_perc.setStyleSheet("color : red")
+                
+
 
                 if stimbtn==b'\x01':                          #PULSE SENT
                     _tempvar = counter
@@ -410,6 +437,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         CMAP = np.array(CMAP)
         self.y_val = CMAP
         CMAP1 = CMAP.reshape(len(CMAP))
+        print (CMAP1)
         self.plotWdgt.clear()
         self.plot_item = self.plotWdgt.plot(CMAP1)
         
@@ -431,7 +459,9 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
 
 if __name__ == '__main__':
     app = QtWidgets.QApplication(sys.argv)
-    w = MainWindow(serialport="COM3333",serialrate= 115200)
+    w = MainWindow(serialport="COM3",serialrate= 115200)
+    # w.resize(800, 480)
     w.show()
+    # w.showFullScreen()
     sys.exit(app.exec_())
     # myport = SerialPort("COM6", 115200)
