@@ -78,13 +78,13 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         serial_ports = []
         description_list = []
         hardware_list = []
-        for port, desc, hwid in sorted(ports):
-            serial_ports.append(port)
-            description_list.append(desc)
-            hardware_list.append(hwid)
-            print("{}: {} [{}]".format(port, desc, hwid))
-        inx = hardware_list.index('USB VID:PID=16C0:0483 SER=10597030 LOCATION=1-1')
-        serialport = serial_ports[inx]
+        # for port, desc, hwid in sorted(ports):
+        #     serial_ports.append(port)
+        #     description_list.append(desc)
+        #     hardware_list.append(hwid)
+        #     print("{}: {} [{}]".format(port, desc, hwid))
+        # inx = hardware_list.index('USB VID:PID=16C0:0483 SER=10597030 LOCATION=1-1')
+        # serialport = serial_ports[inx]
         
 
 
@@ -143,6 +143,11 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         timer.start(1000)
 
         self.click_counter = 0
+
+        # trigger for starting the simulation
+
+        self.sim_started = False
+        self.send_data = False
 
     def close_app(self, serialport ,serialrate = 115200):
         sys.exit(app.exec_())
@@ -295,7 +300,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
 
     def CMAPdata(self):
         if self.saveCMAP:
-            print(self.click_counter)
+            # print(self.click_counter)
             # try:
             _temp_pth = os.path.join(self.folder_name, "CMAPdata" + str(self.click_counter) + ".msgpack" )
             
@@ -344,10 +349,8 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.stimbtn=[]
         self.CMAP=[]
         self.batVolt=[]
-        _tempvar = 0
-        counter = 0
+        self.sim_counter = 0
         
-
         
         while True:
             if self.serial_read():
@@ -364,18 +367,18 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
                 batval = list(struct.unpack("f", self.payload[6:]))  
                 bat_perc = (batval[0] / 2.6) * 100
                 self.batVolt = round(bat_perc)
-                print(self.batVolt)
+                # print(self.batVolt)
                 self.batt_perc.setText("BATTERY :" + " " + str(self.batVolt) + "%")
 
-              
-                counter +=1
 
                 # if bat_perc <= 20:
                     # self.batt_perc.setStyleSheet("color : red")
+
                 
                 if stimbtn==b'\x01':                          #PULSE SENT
-                    _tempvar = counter
-                    self.click_counter+=1       
+                    
+                    self.sim_started = True
+                    self.click_counter+=1
                                               
                     if stimbtn!=self.prevval1:
                         self.display_start = True
@@ -384,6 +387,18 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
                         # t1.join()
                         self.doneSig.setText("PULSE SENT at" + " " + str(var) + "mA")
                         self.doneSig.setStyleSheet("color : green")
+
+                if self.sim_started:
+                    self.sim_counter += 1
+                    if self.sim_counter > 2000:
+                        self.sim_started = False
+                        self.sim_counter = 0
+                        self.send_data = True
+
+                if self.send_data:
+                    print("sending data, length: ", len(self.emg))
+                    progress_callback.emit(self.emg)
+                    self.send_data = False
 
 
                 if ampbtn==b'\x00':                                       #for 0 mA
@@ -416,18 +431,17 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
                         self.pulAmp.setText("2mA")
                  
              
-
-                if len(self.emg[_tempvar:])>2500 and _tempvar is not 0:
-                    CMAP=self.emg[_tempvar-500:_tempvar+2000]
-                    self.cmap_data = CMAP
-                    progress_callback.emit(CMAP)
-                    _tempvar = 0
+                # if len(self.emg[_tempvar:])>2500 and _tempvar is not 0:
+                #     CMAP=self.emg[_tempvar-500:_tempvar+2000]
+                #     self.cmap_data = CMAP
+                #     progress_callback.emit(CMAP)
+                #     _tempvar = 0
                     
                 if stimbtn==b'\x01':    
                     self.saveCMAP = True
                     t2 = threading.Thread(target=self.CMAPdata)
                     t2.start()
-                    t2.join()               
+                    # t2.join()               
 
 
     #update the plot for every stimulation 
@@ -439,7 +453,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         CMAP = np.array(CMAP)
         self.y_val = CMAP
         CMAP1 = CMAP.reshape(len(CMAP))
-        print (CMAP1)
+        # print (CMAP1)
         self.plotWdgt.clear()
         self.plot_item = self.plotWdgt.plot(CMAP1)
         
@@ -461,7 +475,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
 
 if __name__ == '__main__':
     app = QtWidgets.QApplication(sys.argv)
-    w = MainWindow(serialport="COM3",serialrate= 115200)
+    w = MainWindow(serialport="COM9",serialrate= 115200)
     # w.resize(800, 480)
     w.show()
     # w.showFullScreen()
