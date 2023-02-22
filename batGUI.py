@@ -357,7 +357,10 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
                 self.stimbtn.append(stimbtn)
                 emgval = struct.unpack("f", self.payload[2:6])    # EMG values
                 self.emg.append(emgval[0])
-                print(self.emg)
+
+                if len(self.emg) > 2500:
+                    self.emg = self.emg[1:]
+
                 batval = list(struct.unpack("f", self.payload[6:]))  
                 bat_perc = (batval[0] / 2.6) * 100
                 self.batVolt = round(bat_perc)
@@ -370,8 +373,6 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
                 # if bat_perc <= 20:
                     # self.batt_perc.setStyleSheet("color : red")
                 
-
-
                 if stimbtn==b'\x01':                          #PULSE SENT
                     _tempvar = counter
                     self.click_counter+=1       
@@ -421,6 +422,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
                     self.cmap_data = CMAP
                     progress_callback.emit(CMAP)
                     _tempvar = 0
+                    
                 if stimbtn==b'\x01':    
                     self.saveCMAP = True
                     t2 = threading.Thread(target=self.CMAPdata)
